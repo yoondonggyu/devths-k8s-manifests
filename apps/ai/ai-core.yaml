@@ -19,7 +19,7 @@ spec:
       containers:
         # FastAPI 엔드포인트(Gunicorn+Uvicorn) — 워커 수는 리소스 예산 때문에 원본(4)보다 줄임
         - name: ai-endpoint
-          image: harbor.devths.local/devths-ai/ai:beeec7a
+          image: harbor.devths.local/devths-ai/ai:28c8a37
           command: ["poetry", "run", "gunicorn", "app.main:app", "-w", "2", "-k", "uvicorn.workers.UvicornWorker", "--bind", "0.0.0.0:8000", "--timeout", "300"]
           ports:
             - containerPort: 8000
@@ -73,7 +73,7 @@ spec:
         # 파일(emptyDir)로 공유해야 해서 반드시 같은 Pod에 둬야 함(FileTaskStore 구조,
         # 2단계 Docker 전환 때 "같은 VM 강제" 제약이었던 걸 같은 Pod로 자연스럽게 해결)
         - name: celery-worker-extract
-          image: harbor.devths.local/devths-ai/ai:beeec7a
+          image: harbor.devths.local/devths-ai/ai:28c8a37
           command: ["poetry", "run", "celery", "-A", "app.tasks.celery_app", "worker", "--loglevel=info", "-Q", "text_extract,masking,evaluation", "-c", "2"]
           envFrom:
             - secretRef:

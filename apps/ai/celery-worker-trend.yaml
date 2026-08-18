@@ -18,7 +18,7 @@ spec:
         - name: harbor-ai-pull-secret
       containers:
         - name: celery-worker-trend
-          image: harbor.devths.local/devths-ai/ai:beeec7a
+          image: harbor.devths.local/devths-ai/ai:28c8a37
           command: ["poetry", "run", "celery", "-A", "app.tasks.celery_app", "worker", "--loglevel=info", "-Q", "trend_crawl,sagemaker_sync"]
           envFrom:
             - secretRef:
