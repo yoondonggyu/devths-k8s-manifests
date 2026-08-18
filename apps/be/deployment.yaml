@@ -18,7 +18,7 @@ spec:
         - name: harbor-be-pull-secret
       containers:
         - name: be
-          image: harbor.devths.local/devths-be/be:89b84cf
+          image: harbor.devths.local/devths-be/be:2290e4e
           ports:
             - containerPort: 8080
           envFrom:
