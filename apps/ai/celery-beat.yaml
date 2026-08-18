@@ -1,0 +1,49 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: celery-beat
+  labels:
+    app: celery-beat
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: celery-beat
+  template:
+    metadata:
+      labels:
+        app: celery-beat
+    spec:
+      imagePullSecrets:
+        - name: harbor-ai-pull-secret
+      containers:
+        - name: celery-beat
+          image: harbor.devths.local/devths-ai/ai:k8s-init
+          command: ["poetry", "run", "celery", "-A", "app.tasks.celery_app", "beat", "--loglevel=info"]
+          envFrom:
+            - secretRef:
+                name: ai-app-secret
+          env:
+            - name: ENVIRONMENT
+              value: "production"
+            - name: REDIS_URL
+              value: "redis://redis:6379/0"
+            - name: CELERY_BROKER_URL
+              value: "redis://redis:6379/1"
+            - name: CELERY_RESULT_BACKEND
+              value: "redis://redis:6379/2"
+            - name: TREND_CRAWL_CRON_MINUTE
+              value: "0"
+            - name: TREND_CRAWL_CRON_HOUR
+              value: "9"
+            - name: TREND_CRAWL_CRON_DAY_OF_WEEK
+              value: "1"
+          resources:
+            requests:
+              cpu: 50m
+              memory: 100Mi
+            limits:
+              cpu: 200m
+              memory: 200Mi

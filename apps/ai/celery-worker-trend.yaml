@@ -1,0 +1,47 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: celery-worker-trend
+  labels:
+    app: celery-worker-trend
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: celery-worker-trend
+  template:
+    metadata:
+      labels:
+        app: celery-worker-trend
+    spec:
+      imagePullSecrets:
+        - name: harbor-ai-pull-secret
+      containers:
+        - name: celery-worker-trend
+          image: harbor.devths.local/devths-ai/ai:k8s-init
+          command: ["poetry", "run", "celery", "-A", "app.tasks.celery_app", "worker", "--loglevel=info", "-Q", "trend_crawl,sagemaker_sync"]
+          envFrom:
+            - secretRef:
+                name: ai-app-secret
+          env:
+            - name: ENVIRONMENT
+              value: "production"
+            - name: CHROMA_SERVER_HOST
+              value: "vectordb"
+            - name: CHROMA_SERVER_PORT
+              value: "8000"
+            - name: REDIS_URL
+              value: "redis://redis:6379/0"
+            - name: CELERY_BROKER_URL
+              value: "redis://redis:6379/1"
+            - name: CELERY_RESULT_BACKEND
+              value: "redis://redis:6379/2"
+            - name: PROMETHEUS_MULTIPROC_DIR
+              value: "/tmp/prometheus_multiproc"
+          resources:
+            requests:
+              cpu: 50m
+              memory: 200Mi
+            limits:
+              cpu: 300m
+              memory: 350Mi

@@ -1,0 +1,119 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ai-core
+  labels:
+    app: ai-core
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: ai-core
+  template:
+    metadata:
+      labels:
+        app: ai-core
+    spec:
+      imagePullSecrets:
+        - name: harbor-ai-pull-secret
+      containers:
+        # FastAPI 엔드포인트(Gunicorn+Uvicorn) — 워커 수는 리소스 예산 때문에 원본(4)보다 줄임
+        - name: ai-endpoint
+          image: harbor.devths.local/devths-ai/ai:k8s-init
+          command: ["poetry", "run", "gunicorn", "app.main:app", "-w", "2", "-k", "uvicorn.workers.UvicornWorker", "--bind", "0.0.0.0:8000", "--timeout", "300"]
+          ports:
+            - containerPort: 8000
+          envFrom:
+            - secretRef:
+                name: ai-app-secret
+          env:
+            - name: ENVIRONMENT
+              value: "production"
+            - name: CHROMA_SERVER_HOST
+              value: "vectordb"
+            - name: CHROMA_SERVER_PORT
+              value: "8000"
+            - name: EASYOCR_SERVER_URL
+              value: ""
+            - name: GCP_VLLM_BASE_URL
+              value: ""
+            - name: VLLM_32B_BASE_URL
+              value: ""
+            - name: REDIS_URL
+              value: "redis://redis:6379/0"
+            - name: CELERY_BROKER_URL
+              value: "redis://redis:6379/1"
+            - name: CELERY_RESULT_BACKEND
+              value: "redis://redis:6379/2"
+          volumeMounts:
+            - name: task-storage
+              mountPath: /app/task_storage
+          resources:
+            requests:
+              cpu: 150m
+              memory: 350Mi
+            limits:
+              cpu: 500m
+              memory: 600Mi
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8000
+            initialDelaySeconds: 15
+            periodSeconds: 10
+            failureThreshold: 6
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8000
+            initialDelaySeconds: 30
+            periodSeconds: 20
+
+        # Celery Worker(text_extract/masking/evaluation) — ai-endpoint와 태스크 상태를
+        # 파일(emptyDir)로 공유해야 해서 반드시 같은 Pod에 둬야 함(FileTaskStore 구조,
+        # 2단계 Docker 전환 때 "같은 VM 강제" 제약이었던 걸 같은 Pod로 자연스럽게 해결)
+        - name: celery-worker-extract
+          image: harbor.devths.local/devths-ai/ai:k8s-init
+          command: ["poetry", "run", "celery", "-A", "app.tasks.celery_app", "worker", "--loglevel=info", "-Q", "text_extract,masking,evaluation", "-c", "2"]
+          envFrom:
+            - secretRef:
+                name: ai-app-secret
+          env:
+            - name: ENVIRONMENT
+              value: "production"
+            - name: CHROMA_SERVER_HOST
+              value: "vectordb"
+            - name: CHROMA_SERVER_PORT
+              value: "8000"
+            - name: REDIS_URL
+              value: "redis://redis:6379/0"
+            - name: CELERY_BROKER_URL
+              value: "redis://redis:6379/1"
+            - name: CELERY_RESULT_BACKEND
+              value: "redis://redis:6379/2"
+            - name: PROMETHEUS_MULTIPROC_DIR
+              value: "/tmp/prometheus_multiproc"
+          volumeMounts:
+            - name: task-storage
+              mountPath: /app/task_storage
+          resources:
+            requests:
+              cpu: 100m
+              memory: 250Mi
+            limits:
+              cpu: 400m
+              memory: 450Mi
+      volumes:
+        - name: task-storage
+          emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: ai-endpoint
+spec:
+  selector:
+    app: ai-core
+  ports:
+    - port: 8000
+      targetPort: 8000
