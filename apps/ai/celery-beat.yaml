@@ -20,7 +20,7 @@ spec:
         - name: harbor-ai-pull-secret
       containers:
         - name: celery-beat
-          image: harbor.devths.local/devths-ai/ai:k8s-init
+          image: harbor.devths.local/devths-ai/ai:fe2e50e
           command: ["poetry", "run", "celery", "-A", "app.tasks.celery_app", "beat", "--loglevel=info"]
           envFrom:
             - secretRef:
