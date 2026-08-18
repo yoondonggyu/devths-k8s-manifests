@@ -1,0 +1,49 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: be
+  labels:
+    app: be
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: be
+  template:
+    metadata:
+      labels:
+        app: be
+    spec:
+      imagePullSecrets:
+        - name: harbor-be-pull-secret
+      containers:
+        - name: be
+          image: harbor.devths.local/devths-be/be:k8s-init
+          ports:
+            - containerPort: 8080
+          envFrom:
+            - secretRef:
+                name: be-app-secret
+          env:
+            - name: JAVA_TOOL_OPTIONS
+              value: "-Xmx384m"
+          resources:
+            requests:
+              cpu: 200m
+              memory: 384Mi
+            limits:
+              cpu: 800m
+              memory: 640Mi
+          readinessProbe:
+            httpGet:
+              path: /actuator/health
+              port: 8080
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            failureThreshold: 6
+          livenessProbe:
+            httpGet:
+              path: /actuator/health
+              port: 8080
+            initialDelaySeconds: 60
+            periodSeconds: 20
