@@ -18,7 +18,7 @@ spec:
         - name: harbor-fe-pull-secret
       containers:
         - name: fe
-          image: harbor.devths.local/devths-fe/fe:k8s-init
+          image: harbor.devths.local/devths-fe/fe:2237238
           ports:
             - containerPort: 3000
           resources:
